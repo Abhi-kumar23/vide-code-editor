@@ -38,8 +38,8 @@ const UserButton = () => {
         </span>
       </DropdownMenuItem>
       <DropdownMenuSeparator/>
-        <LogoutButton>
-            <DropdownMenuItem>
+        <LogoutButton >
+            <DropdownMenuItem >
                 <LogOut className="h-4 w-4 mr-2"/>
                 LogOut
             </DropdownMenuItem>
