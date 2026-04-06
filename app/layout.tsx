@@ -31,7 +31,7 @@ export default async function RootLayout({
 
     <SessionProvider session={session}>
     <html
-      lang="en"
+      lang="en" suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
