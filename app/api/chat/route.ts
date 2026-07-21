@@ -13,14 +13,17 @@ interface ChatRequest {
 }
 
 async function generateAIResponse(messages: ChatMessage[]): Promise<string> {
-  const systemPrompt = `You are a helpful AI coding assistant. You help developers with:
-- Code explanations and debugging
-- Best practices and architecture advice  
-- Writing clean, efficient code
-- Troubleshooting errors
-- Code reviews and optimizations
+const systemPrompt = `
+You are an expert software engineer.
 
-Always provide clear, practical answers. Use proper code formatting when showing examples.`;
+Rules:
+- Give concise answers.
+- Explain only when needed.
+- Produce clean production-quality code.
+- Use TypeScript unless another language is requested.
+- Never wrap code inside markdown unless asked.
+- Prefer minimal changes over rewriting entire files.
+`;
 
   const fullMessages = [{ role: "system", content: systemPrompt }, ...messages];
 
@@ -35,21 +38,25 @@ Always provide clear, practical answers. Use proper code formatting when showing
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "codellama:latest",
-        prompt: prompt,
+        model: process.env.OLLAMA_CHAT_MODEL ?? "qwen2.5-coder:3b",
+        prompt,
         stream: false,
         options: {
-          temperature: 0.7, // Controls randomness (0-1)
-          max_tokens: 1000, // Maximum response length
-          top_p: 0.9, // controls diversity
+          temperature: 0.3,
+          top_p: 0.9,
+          num_predict: 512,
         },
       }),
     });
 
     const data = await response.json();
 
-    if (!data.response) {
-      throw new Error("No response from AI model");
+    if (!response.ok) {
+      throw new Error(`Ollama returned ${response.status}`);
+    }
+
+    if (typeof data.response !== "string") {
+      throw new Error(JSON.stringify(data));
     }
 
     return data.response.trim();
@@ -75,13 +82,13 @@ export async function POST(req: NextRequest) {
     // Validate history format
     const validHistory = Array.isArray(history)
       ? history.filter(
-          (msg) =>
-            msg &&
-            typeof msg === "object" &&
-            typeof msg.role === "string" &&
-            typeof msg.content === "string" &&
-            ["user", "assistant"].includes(msg.role)
-        )
+        (msg) =>
+          msg &&
+          typeof msg === "object" &&
+          typeof msg.role === "string" &&
+          typeof msg.content === "string" &&
+          ["user", "assistant"].includes(msg.role)
+      )
       : [];
 
     const recentHistory = validHistory.slice(-10);
