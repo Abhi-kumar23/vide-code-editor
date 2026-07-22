@@ -128,3 +128,29 @@
     @apply font-sans;
   }
 }
+
+@layer components {
+  .surface {
+    @apply rounded-xl border border-border bg-card shadow-sm;
+  }
+
+  .surface-hover {
+    @apply transition-all duration-200 hover:border-primary/40 hover:shadow-lg;
+  }
+
+  .glass {
+    @apply bg-background/70 backdrop-blur-xl;
+  }
+
+  .page {
+    @apply mx-auto max-w-7xl px-6 py-8;
+  }
+
+  .heading {
+    @apply text-3xl font-bold tracking-tight;
+  }
+
+  .subheading {
+    @apply text-muted-foreground;
+  }
+}
