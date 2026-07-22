@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { WebContainer } from "@webcontainer/api";
 import { TemplateFolder } from "@/modules/playground/lib/path-to-json";
 
+let webcontainerInstance: WebContainer | null = null;
+
 interface UseWebContainerProps {
   templateData: TemplateFolder;
 }
@@ -28,11 +30,16 @@ export const useWebContainer = ({
 
     async function initializeWebContainer() {
       try {
-        const webcontainerInstance = await WebContainer.boot();
+        let wc = webcontainerInstance;
+
+        if (!wc) {
+          wc = await WebContainer.boot();
+          webcontainerInstance = wc;
+        }
 
         if (!mounted) return;
 
-        setInstance(webcontainerInstance);
+        setInstance(wc);
         setIsLoading(false);
       } catch (error) {
         console.error("Failed to initialize WebContainer:", error);
@@ -51,9 +58,6 @@ export const useWebContainer = ({
 
     return () => {
       mounted = false;
-      if (instance) {
-        instance.teardown();
-      }
     };
   }, []);
 
@@ -82,13 +86,14 @@ export const useWebContainer = ({
     [instance]
   );
 
-  const destory = useCallback(()=>{
-    if(instance){
-        instance.teardown()
-        setInstance(null);
-        setServerUrl(null)
+  const destory = useCallback(() => {
+    if (instance) {
+      instance.teardown();
+      webcontainerInstance = null;
+      setInstance(null);
+      setServerUrl(null);
     }
-  },[instance])
+  }, [instance])
 
-  return {serverUrl , isLoading , error , instance , writeFileSync , destory}
+  return { serverUrl, isLoading, error, instance, writeFileSync, destory }
 };

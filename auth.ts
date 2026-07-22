@@ -3,7 +3,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 
 import authConfig from "./auth.config"
 import { db } from "./lib/db";
-import { getAccountByUserId, getUserById } from "./modules/auth/actions";
+import { getUserById } from "./modules/auth/actions";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     callbacks: {
@@ -66,6 +66,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                             sessionState: account.session_state,
                         },
                     });
+                } else if (account.provider === "github") {
+                    await db.account.update({
+                        where: { id: existingAccount.id },
+                        data: {
+                            accessToken: account.access_token ?? existingAccount.accessToken,
+                            refreshToken: account.refresh_token ?? existingAccount.refreshToken,
+                            expiresAt: account.expires_at ?? existingAccount.expiresAt,
+                            scope: account.scope ?? existingAccount.scope,
+                            tokenType: account.token_type ?? existingAccount.tokenType,
+                        },
+                    });
                 }
             }
             return true;
@@ -75,8 +86,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             const existingUser = await getUserById(token.sub)
 
             if (!existingUser) return token;
-
-            const exisitingAccount = await getAccountByUserId(existingUser.id);
 
             token.name = existingUser.name;
             token.email = existingUser.email;
@@ -97,7 +106,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return session;
         },
     },
-    secret: process.env.AuthSecret,
+    secret: process.env.AUTH_SECRET,
     adapter: PrismaAdapter(db),
     session: {strategy: "jwt"},
     ...authConfig
