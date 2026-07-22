@@ -4,10 +4,22 @@ import * as path from 'path';
 /**
  * Represents a file in the template structure
  */
+export interface GitHubFileSource {
+  path: string;
+  sha: string;
+}
+
+export interface GitHubRepositorySource {
+  owner: string;
+  repo: string;
+  branch: string;
+}
+
 export interface TemplateFile {
   filename: string;
   fileExtension: string;
   content: string;
+  github?: GitHubFileSource;
 }
 
 /**
@@ -16,6 +28,7 @@ export interface TemplateFile {
 export interface TemplateFolder {
   folderName: string;
   items: (TemplateFile | TemplateFolder)[];
+  github?: GitHubRepositorySource;
 }
 
 /**

@@ -1,10 +1,18 @@
-interface TemplateItem {
-  filename: string;
-  fileExtension: string;
-  content: string;
-  folderName?: string;
-  items?: TemplateItem[];
+import type {
+  TemplateFile,
+  TemplateFolder,
+} from "@/modules/playground/lib/path-to-json";
+
+type TemplateItem = TemplateFile | TemplateFolder;
+
+
+function getName(item: TemplateItem) {
+  if (isFolder(item)) return item.folderName;
+  return item.fileExtension
+  ? `${item.filename}.${item.fileExtension}`
+  : item.filename;
 }
+
 
 interface WebContainerFile {
   file: {
@@ -20,40 +28,32 @@ interface WebContainerDirectory {
 
 type WebContainerFileSystem = Record<string, WebContainerFile | WebContainerDirectory>;
 
-export function transformToWebContainerFormat(template: { folderName: string; items: TemplateItem[] }): WebContainerFileSystem {
-  function processItem(item: TemplateItem): WebContainerFile | WebContainerDirectory {
-    if (item.folderName && item.items) {
-      // This is a directory
-      const directoryContents: WebContainerFileSystem = {};
-      
-      item.items.forEach(subItem => {
-        const key = subItem.fileExtension 
-          ? `${subItem.filename}.${subItem.fileExtension}`
-          : subItem.folderName!;
-        directoryContents[key] = processItem(subItem);
-      });
+function isFolder(item: TemplateItem): item is TemplateFolder {
+  return "items" in item && Array.isArray(item.items);
+}
 
-      return {
-        directory: directoryContents
-      };
-    } else {
-      // This is a file
+export function transformToWebContainerFormat(
+  template: TemplateFolder,
+): WebContainerFileSystem {
+  const toEntry = (
+    item: TemplateItem,
+  ): WebContainerFile | WebContainerDirectory => {
+    if (!isFolder(item)) {
       return {
         file: {
-          contents: item.content
-        }
+          contents: item.content,
+        },
       };
     }
-  }
 
-  const result: WebContainerFileSystem = {};
-  
-  template.items.forEach(item => {
-    const key = item.fileExtension 
-      ? `${item.filename}.${item.fileExtension}`
-      : item.folderName!;
-    result[key] = processItem(item);
-  });
+    return {
+      directory: Object.fromEntries(
+        item.items.map((child) => [getName(child), toEntry(child)]),
+      ),
+    };
+  };
 
-  return result;
-}1
+  return Object.fromEntries(
+    template.items.map((item) => [getName(item), toEntry(item)]),
+  );
+}
