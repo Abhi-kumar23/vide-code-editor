@@ -1,6 +1,5 @@
-import { db } from "@/lib/db";
-import { error } from "console";
 import { NextRequest, NextResponse } from "next/server";
+import { defaultChatModel, isChatModel, type ChatModel } from "@/lib/chat-models";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -8,12 +7,13 @@ interface ChatMessage {
 }
 
 interface ChatRequest {
-  message: string;
-  history: ChatMessage[];
+  message: unknown;
+  history?: unknown;
+  model?: unknown;
 }
 
-async function generateAIResponse(messages: ChatMessage[]): Promise<string> {
-const systemPrompt = `
+async function generateAIResponse(messages: ChatMessage[], model: ChatModel,): Promise<string> {
+  const systemPrompt = `
 You are an expert software engineer.
 
 Rules:
@@ -38,7 +38,7 @@ Rules:
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: process.env.OLLAMA_CHAT_MODEL ?? "qwen2.5-coder:3b",
+        model,
         prompt,
         stream: false,
         options: {
@@ -68,8 +68,22 @@ Rules:
 
 export async function POST(req: NextRequest) {
   try {
-    const body: ChatRequest = await req.json();
+    const body = (await req.json()) as ChatRequest;
+
     const { message, history = [] } = body;
+
+    const configuredDefault = isChatModel(process.env.OLLAMA_CHAT_MODEL)
+      ? process.env.OLLAMA_CHAT_MODEL
+      : defaultChatModel;
+
+    const model = body.model ?? configuredDefault;
+
+    if (!isChatModel(model)) {
+      return NextResponse.json(
+        { error: "Unsupported chat model" },
+        { status: 400 }
+      );
+    }
 
     // Validate input
     if (!message || typeof message !== "string") {
@@ -100,12 +114,13 @@ export async function POST(req: NextRequest) {
 
     //   Generate ai response
 
-    const aiResponse = await generateAIResponse(messages);
+    const aiResponse = await generateAIResponse(messages, model);
 
 
 
     return NextResponse.json({
       response: aiResponse,
+      model,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

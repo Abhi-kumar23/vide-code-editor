@@ -5,6 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { chatModels, defaultChatModel, type ChatModel } from "@/lib/chat-models";
 
 import {
     Loader2,
@@ -123,7 +124,7 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
     const [filterType, setFilterType] = useState<string>("all");
     const [autoSave, setAutoSave] = useState(true);
     const [streamResponse, setStreamResponse] = useState(true);
-    const [model, setModel] = useState<string>("gpt-6");
+    const [model, setModel] = useState<ChatModel>(defaultChatModel);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -153,111 +154,111 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
         }
     };
 
-   const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    const handleSendMessage = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!input.trim() || isLoading) return;
 
-    const messageType =
-      chatMode === "chat"
-        ? "chat"
-        : chatMode === "review"
-        ? "code_review"
-        : chatMode === "fix"
-        ? "error_fix"
-        : "optimization";
+        const messageType =
+            chatMode === "chat"
+                ? "chat"
+                : chatMode === "review"
+                    ? "code_review"
+                    : chatMode === "fix"
+                        ? "error_fix"
+                        : "optimization";
 
-    const newMessage: ChatMessage = {
-      role: "user",
-      content: input.trim(),
-      timestamp: new Date(),
-      id: Date.now().toString(),
-      type: messageType,
-    };
-
-    setMessages((prev) => [...prev, newMessage]);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const contextualMessage = getChatModePrompt(chatMode, input.trim());
-
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          message: contextualMessage,
-          history: messages.slice(-10).map((msg) => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          stream: streamResponse,
-          mode: chatMode,
-          model,
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content: data.response,
+        const newMessage: ChatMessage = {
+            role: "user",
+            content: input.trim(),
             timestamp: new Date(),
             id: Date.now().toString(),
             type: messageType,
-            tokens: data.tokens,
-            model: data.model || "AI Assistant",
-          },
-        ]);
-      } else {
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            content:
-              "Sorry, I encountered an error while processing your request. Please try again.",
-            timestamp: new Date(),
-            id: Date.now().toString(),
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error("Error sending message:", error);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content:
-            "I'm having trouble connecting right now. Please check your internet connection and try again.",
-          timestamp: new Date(),
-          id: Date.now().toString(),
-        },
-      ]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        };
+
+        setMessages((prev) => [...prev, newMessage]);
+        setInput("");
+        setIsLoading(true);
+
+        try {
+            const contextualMessage = getChatModePrompt(chatMode, input.trim());
+
+            const response = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    message: contextualMessage,
+                    history: messages.slice(-10).map((msg) => ({
+                        role: msg.role,
+                        content: msg.content,
+                    })),
+                    stream: streamResponse,
+                    mode: chatMode,
+                    model,
+                }),
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content: data.response,
+                        timestamp: new Date(),
+                        id: Date.now().toString(),
+                        type: messageType,
+                        tokens: data.tokens,
+                        model: data.model || "AI Assistant",
+                    },
+                ]);
+            } else {
+                setMessages((prev) => [
+                    ...prev,
+                    {
+                        role: "assistant",
+                        content:
+                            "Sorry, I encountered an error while processing your request. Please try again.",
+                        timestamp: new Date(),
+                        id: Date.now().toString(),
+                    },
+                ]);
+            }
+        } catch (error) {
+            console.error("Error sending message:", error);
+            setMessages((prev) => [
+                ...prev,
+                {
+                    role: "assistant",
+                    content:
+                        "I'm having trouble connecting right now. Please check your internet connection and try again.",
+                    timestamp: new Date(),
+                    id: Date.now().toString(),
+                },
+            ]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const exportChat = () => {
-         const chatData = {
-      messages,
-      timestamp: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(chatData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `ai-chat-${new Date().toISOString().split("T")[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+        const chatData = {
+            messages,
+            timestamp: new Date().toISOString(),
+        };
+        const blob = new Blob([JSON.stringify(chatData, null, 2)], {
+            type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `ai-chat-${new Date().toISOString().split("T")[0]}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     const filteredMessages = messages
@@ -388,12 +389,13 @@ export const AIChatSidePanel: React.FC<AIChatSidePanelProps> = ({
                                         <span className="text-zinc-500">Model:</span>
                                         <select
                                             value={model}
-                                            onChange={(e) => setModel(e.target.value)}
-                                            className="bg-zinc-900/60 border border-zinc-800 rounded px-2 py-1 text-zinc-200 focus:outline-none"
+                                            onChange={(e) => setModel(e.target.value as ChatModel)}
                                         >
-                                            <option value="gpt-6">gpt-6</option>
-                                            <option value="codellama">codellama</option>
-                                            <option value="llama2">llama2</option>
+                                            {chatModels.map((model) => (
+                                                <option key={model.id} value={model.id}>
+                                                    {model.label}
+                                                </option>
+                                            ))}
                                         </select>
                                     </div>
                                     <div className="relative">
